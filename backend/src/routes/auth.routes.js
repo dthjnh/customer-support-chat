@@ -12,11 +12,15 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const role = req.body.role || "CUSTOMER";
+
+
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
+        role,
       },
     });
 
@@ -47,7 +51,27 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ token });
+    res.json({ 
+      token,
+      user: {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all users
+router.get("/users", async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, email: true, role: true },
+    });
+    res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

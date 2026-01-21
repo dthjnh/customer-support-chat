@@ -8,21 +8,77 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String?  @unique
-  password  String
-  role      Role     @default(CUSTOMER)
-  messages  Message[]
-  createdAt DateTime @default(now())
+  id       String   @id @default(uuid())
+  name     String
+  email    String   @unique
+  password String?
+  role     String
+
+  customerRooms ChatRoom[] @relation("CustomerRooms")
+  agentRooms    ChatRoom[] @relation("AgentRooms")
+
+  messages Message[]
+
+  directMessagesSent DirectMessage[]
+
+  friendsInitiated Friend[] @relation("UserFriends")
+  friendsReceived  Friend[] @relation("FriendUsers")
 }
+
 
 model Message {
   id        String   @id @default(uuid())
   content   String
-  senderId  String
-  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+
+  roomId    String
+  room      ChatRoom @relation(fields: [roomId], references: [id])
+}
+
+
+model ChatRoom {
+  id         String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  status     String   @default("OPEN")
+
+  customerId String
+  customer   User     @relation("CustomerRooms", fields: [customerId], references: [id])
+
+  agentId    String?
+  agent      User?    @relation("AgentRooms", fields: [agentId], references: [id])
+
+  messages   Message[]
+}
+
+model Friend {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userId   String
+  user     User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+
+  friendId String
+  friend   User     @relation("FriendUsers", fields: [friendId], references: [id], onDelete: Cascade)
+
+  directMessages DirectMessage[]
+
+  @@unique([userId, friendId])
+}
+
+model DirectMessage {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  isRead    Boolean  @default(false)
+
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  friendshipId String
+  friendship   Friend @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
 }
 
 enum Role {

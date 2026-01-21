@@ -10,6 +10,8 @@ const auth = require("./middlewares/auth");
 
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
+const usersRoutes = require("./routes/users.routes");
+const chat = require("./sockets/chat");
 
 const app = express();
 app.use(cors());
@@ -17,7 +19,12 @@ app.use(express.json());
 
 // ================= ROUTES =================
 app.use("/auth", authRoutes);
+app.use("/users", usersRoutes);
 app.use("/users", userRoutes);
+app.use("/chat", require("./routes/chat.routes"));
+
+
+
 
 // Health check
 app.get("/", (req, res) => {
@@ -39,7 +46,10 @@ const server = http.createServer(app);
 
 // ================= SOCKET.IO =================
 const io = new Server(server, {
-  cors: { origin: "*" },
+  cors: { 
+    origin: "http://localhost:5173",
+    credentials: true,
+  },
 });
 
 app.set("io", io);

@@ -9,10 +9,10 @@ const router = express.Router();
  * =========================================
  * GET /users
  * Get all users
- * Accessible by: ADMIN, AGENT
+ * Accessible by: ADMIN only
  * =========================================
  */
-router.get("/", auth, role(["ADMIN", "AGENT"]), async (req, res) => {
+router.get("/", auth, role(["ADMIN"]), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       select: {
@@ -35,10 +35,10 @@ router.get("/", auth, role(["ADMIN", "AGENT"]), async (req, res) => {
  * =========================================
  * GET /users/:id
  * Get user by ID
- * Accessible by: ADMIN, AGENT
+ * Accessible by: ADMIN only
  * =========================================
  */
-router.get("/:id", auth, role(["ADMIN", "AGENT"]), async (req, res) => {
+router.get("/:id", auth, role(["ADMIN"]), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.params.id },
@@ -73,7 +73,7 @@ router.patch("/:id/role", auth, role(["ADMIN"]), async (req, res) => {
   try {
     const { role: newRole } = req.body;
 
-    const allowedRoles = ["ADMIN", "AGENT", "CUSTOMER"];
+    const allowedRoles = ["ADMIN", "CUSTOMER"];
     if (!allowedRoles.includes(newRole)) {
       return res.status(400).json({ error: "Invalid role" });
     }
