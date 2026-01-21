@@ -15,7 +15,6 @@ model User {
   role     String
 
   customerRooms ChatRoom[] @relation("CustomerRooms")
-  agentRooms    ChatRoom[] @relation("AgentRooms")
 
   messages Message[]
 
@@ -46,9 +45,6 @@ model ChatRoom {
 
   customerId String
   customer   User     @relation("CustomerRooms", fields: [customerId], references: [id])
-
-  agentId    String?
-  agent      User?    @relation("AgentRooms", fields: [agentId], references: [id])
 
   messages   Message[]
 }
@@ -83,6 +79,5 @@ model DirectMessage {
 
 enum Role {
   CUSTOMER
-  AGENT
   ADMIN
 }
