@@ -28,6 +28,8 @@ model User {
 model Message {
   id        String   @id @default(uuid())
   content   String
+  type      String   @default("text")
+  duration  Int?
   createdAt DateTime @default(now())
 
   senderId  String
@@ -67,6 +69,8 @@ model Friend {
 model DirectMessage {
   id        String   @id @default(uuid())
   content   String
+  type      String   @default("text")
+  duration  Int?
   createdAt DateTime @default(now())
   isRead    Boolean  @default(false)
 

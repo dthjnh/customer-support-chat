@@ -87,13 +87,18 @@ export default function ChatBox({ roomId, isDirect = false }) {
     }
   };
 
-  const handleSend = (text) => {
-    if (!text.trim()) return;
+  const handleSend = (messageData) => {
+    // Handle both string (legacy) and object (new format)
+    const msgObject = typeof messageData === "string" 
+      ? { type: "text", content: messageData }
+      : messageData;
+
+    if (!msgObject.content || (msgObject.type === "text" && !msgObject.content.trim())) return;
 
     // Optimistic update - add message immediately to UI
     const tempMessage = {
       id: `temp-${Date.now()}`,
-      content: text,
+      ...msgObject,
       senderId: localStorage.getItem("userId"),
       createdAt: new Date().toISOString(),
     };
@@ -102,7 +107,7 @@ export default function ChatBox({ roomId, isDirect = false }) {
 
     socket.emit("sendMessage", {
       roomId,
-      content: text,
+      ...msgObject,
       isDirect,
     });
   };

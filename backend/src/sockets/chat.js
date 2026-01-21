@@ -89,7 +89,7 @@ module.exports = (io) => {
      * 💬 SEND MESSAGE
      * ============================
      */
-    socket.on("sendMessage", async ({ roomId, content, isDirect }) => {
+    socket.on("sendMessage", async ({ roomId, content, isDirect, type = "text", duration }) => {
       try {
         if (!roomId || !content?.trim()) {
           console.error("❌ sendMessage invalid payload", {
@@ -126,10 +126,12 @@ module.exports = (io) => {
               return;
             }
 
-            // Save direct message to database
+            // Save direct message to database with type and duration
             const message = await prisma.directMessage.create({
               data: {
                 content,
+                type,
+                duration: type === "audio" ? duration : null,
                 senderId: socket.user.userId,
                 friendshipId: friendship.id,
               },
@@ -141,7 +143,7 @@ module.exports = (io) => {
               roomId,
               sender: { id: sender.id, name: sender.name, email: sender.email },
             });
-            console.log("💬 Direct message saved:", message.id);
+            console.log("💬 Direct message saved:", message.id, `[${type}]`);
           } catch (err) {
             console.error("❌ Direct message error:", err);
           }
@@ -161,6 +163,8 @@ module.exports = (io) => {
         const message = await prisma.message.create({
           data: {
             content,
+            type,
+            duration: type === "audio" ? duration : null,
             senderId: socket.user.userId,
             roomId,
           },
@@ -172,7 +176,7 @@ module.exports = (io) => {
           roomId,
           sender: { id: sender.id, name: sender.name, email: sender.email },
         });
-        console.log("💬 Support message saved:", message.id);
+        console.log("💬 Support message saved:", message.id, `[${type}]`);
       } catch (err) {
         console.error("❌ sendMessage error:", err);
       }
