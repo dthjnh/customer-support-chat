@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import socket from "../socket";
 import MessageBubble from "../components/MessageBubble";
 import MessageInput from "../components/MessageInput";
+import CallModal from "../components/CallModal";
 import { api } from "../lib/api";
 
 export default function DirectMessage() {
@@ -11,6 +12,8 @@ export default function DirectMessage() {
   const [messages, setMessages] = useState([]);
   const [friendInfo, setFriendInfo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeCall, setActiveCall] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
   const messagesEndRef = useRef(null);
 
   const directMessageRoomId = [localStorage.getItem("userId"), friendId]
@@ -35,6 +38,10 @@ export default function DirectMessage() {
     socket.off("loadMessages");
     socket.off("receiveMessage");
     socket.off("messageDeleted");
+    socket.off("callOffer");
+    socket.off("callAnswer");
+    socket.off("iceCandidate");
+    socket.off("endCall");
 
     socket.emit("joinRoom", { roomId: directMessageRoomId });
 
@@ -51,9 +58,42 @@ export default function DirectMessage() {
       setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
     });
 
+    // Call event listeners
+    socket.on("callOffer", ({ offer, callType }) => {
+      console.log("📞 Incoming call:", callType);
+      window.__incomingOffer = offer;
+      setIncomingCall(callType);
+    });
+
+    socket.on("callAnswer", ({ answer }) => {
+      console.log("✅ Call answered");
+      if (window.__peerConnection) {
+        window.__peerConnection.setRemoteDescription(
+          new RTCSessionDescription(answer)
+        );
+      }
+    });
+
+    socket.on("iceCandidate", ({ candidate }) => {
+      console.log("🧊 ICE candidate received");
+      if (window.__peerConnection && window.__peerConnection.remoteDescription) {
+        window.__peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+
+    socket.on("endCall", () => {
+      console.log("📵 Call ended");
+      setActiveCall(null);
+      setIncomingCall(null);
+    });
+
     return () => {
       socket.off("receiveMessage");
       socket.off("messageDeleted");
+      socket.off("callOffer");
+      socket.off("callAnswer");
+      socket.off("iceCandidate");
+      socket.off("endCall");
     };
   }, [directMessageRoomId]);
 
@@ -101,6 +141,16 @@ export default function DirectMessage() {
     });
   };
 
+  const startCall = (type) => {
+    if (!friendId) return;
+    setActiveCall(type);
+  };
+
+  const endCall = () => {
+    setActiveCall(null);
+    setIncomingCall(null);
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", width: "100vw", background: "#f8fafc", fontSize: 16, color: "#9ca3af", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
@@ -111,6 +161,17 @@ export default function DirectMessage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100vw", background: "#f8fafc", color: "#1f2937", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
+      {/* Active Call */}
+      {(activeCall || incomingCall) && (
+        <CallModal
+          friendId={friendId}
+          friendName={friendInfo?.name}
+          callType={activeCall || incomingCall}
+          incomingCall={!!incomingCall}
+          onEnd={endCall}
+        />
+      )}
+
       {/* HEADER */}
       <div
         style={{
@@ -150,6 +211,61 @@ export default function DirectMessage() {
               {friendInfo?.email}
             </p>
           </div>
+        </div>
+
+        {/* Call Buttons */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            onClick={() => startCall("audio")}
+            style={{
+              padding: "8px 12px",
+              background: "#667eea",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: 16,
+              transition: "all 0.2s ease",
+              whiteSpace: "nowrap",
+              title: "Voice Call",
+            }}
+            title="Voice Call"
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "#5568d3";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "#667eea";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            🎙️
+          </button>
+          <button
+            onClick={() => startCall("video")}
+            style={{
+              padding: "8px 12px",
+              background: "#764ba2",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: 16,
+              transition: "all 0.2s ease",
+              whiteSpace: "nowrap",
+            }}
+            title="Video Call"
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "#6a3d8f";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "#764ba2";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            📹
+          </button>
         </div>
       </div>
 

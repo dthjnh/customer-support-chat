@@ -1,6 +1,9 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../prisma");
 
+// Track user ID to socket ID mapping for direct calls
+const userSockets = {};
+
 module.exports = (io) => {
   /**
    * ============================
@@ -37,7 +40,10 @@ module.exports = (io) => {
    * ============================
    */
   io.on("connection", (socket) => {
-    console.log("🔌 Connected user:", socket.user.userId);
+    const userId = socket.user.userId;
+    userSockets[userId] = socket.id;
+    console.log("🔌 Connected user:", userId, "Socket ID:", socket.id);
+    console.log("📊 Active users:", Object.keys(userSockets));
 
     /**
      * ============================
@@ -246,11 +252,81 @@ module.exports = (io) => {
 
     /**
      * ============================
+     * 📞 CALL SIGNALING
+     * ============================
+     */
+    socket.on("callOffer", ({ to, offer, callType }) => {
+      try {
+        console.log(`📞 Call offer from ${socket.user.userId} to ${to} [${callType}]`);
+        const targetSocketId = userSockets[to];
+        if (targetSocketId) {
+          io.to(targetSocketId).emit("callOffer", {
+            from: socket.user.userId,
+            offer,
+            callType,
+          });
+          console.log(`✅ Call offer delivered to socket ${targetSocketId}`);
+        } else {
+          console.warn(`⚠️ User ${to} is not currently online`);
+          socket.emit("callOfferFailed", { reason: "User is offline" });
+        }
+      } catch (err) {
+        console.error("❌ callOffer error:", err);
+      }
+    });
+
+    socket.on("callAnswer", ({ to, answer }) => {
+      try {
+        console.log(`✅ Call answer from ${socket.user.userId} to ${to}`);
+        const targetSocketId = userSockets[to];
+        if (targetSocketId) {
+          io.to(targetSocketId).emit("callAnswer", {
+            from: socket.user.userId,
+            answer,
+          });
+        }
+      } catch (err) {
+        console.error("❌ callAnswer error:", err);
+      }
+    });
+
+    socket.on("iceCandidate", ({ to, candidate }) => {
+      try {
+        const targetSocketId = userSockets[to];
+        if (targetSocketId) {
+          io.to(targetSocketId).emit("iceCandidate", {
+            from: socket.user.userId,
+            candidate,
+          });
+        }
+      } catch (err) {
+        console.error("❌ iceCandidate error:", err);
+      }
+    });
+
+    socket.on("endCall", ({ to }) => {
+      try {
+        console.log(`📵 Call ended from ${socket.user.userId} to ${to}`);
+        const targetSocketId = userSockets[to];
+        if (targetSocketId) {
+          io.to(targetSocketId).emit("endCall", {
+            from: socket.user.userId,
+          });
+        }
+      } catch (err) {
+        console.error("❌ endCall error:", err);
+      }
+    });
+
+    /**
+     * ============================
      * ❌ DISCONNECT
      * ============================
      */
     socket.on("disconnect", () => {
-      console.log("❌ Disconnected user:", socket.user.userId);
+      console.log("❌ Disconnected user:", userId);
+      delete userSockets[userId];
+      console.log("📊 Active users:", Object.keys(userSockets));
     });
   });
 };

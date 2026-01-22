@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChatBox from "../components/ChatBox";
+import CallModal from "../components/CallModal";
 import { api } from "../lib/api";
 import socket from "../socket";
 
@@ -9,6 +10,8 @@ export default function MessengerPage() {
   const [directMessages, setDirectMessages] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedDM, setSelectedDM] = useState(null);
+  const [activeCall, setActiveCall] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -140,6 +143,58 @@ export default function MessengerPage() {
       console.error("❌ Failed to fetch users:", err);
     }
   };
+
+  const startCall = (callType) => {
+    if (!selectedDM) {
+      alert("Please select a contact to call");
+      return;
+    }
+    setActiveCall(callType);
+  };
+
+  const endCall = () => {
+    setActiveCall(null);
+    setIncomingCall(null);
+  };
+
+  // Set up socket listeners for calls
+  useEffect(() => {
+    socket.on("callOffer", async (data) => {
+      console.log("📞 Incoming call from:", data.from, "Type:", data.callType);
+      
+      // Find the contact info for the caller
+      const caller = directMessages.find(dm => dm.id === data.from);
+      
+      setIncomingCall({
+        from: data.from,
+        fromName: caller?.name || "Unknown",
+        offer: data.offer,
+        callType: data.callType,
+      });
+    });
+
+    socket.on("callAnswer", (data) => {
+      console.log("📞 Call answered");
+      // CallModal will handle this
+    });
+
+    socket.on("iceCandidate", (data) => {
+      console.log("❄️ ICE Candidate received");
+      // CallModal will handle this
+    });
+
+    socket.on("endCall", (data) => {
+      console.log("☎️ Call ended");
+      endCall();
+    });
+
+    return () => {
+      socket.off("callOffer");
+      socket.off("callAnswer");
+      socket.off("iceCandidate");
+      socket.off("endCall");
+    };
+  }, [directMessages]);
 
   const handleStartChat = async (userId) => {
     try {
@@ -458,41 +513,107 @@ export default function MessengerPage() {
                 background: "#ffffff",
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "space-between",
                 gap: 12,
                 flexShrink: 0,
               }}
             >
-              <button
-                onClick={() => setSelectedDM(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#667eea",
-                  cursor: "pointer",
-                  fontSize: 24,
-                  padding: 0,
-                  transition: "all 0.2s ease",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = "translateX(-4px)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = "translateX(0)";
-                }}
-              >
-                ←
-              </button>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: "600", color: "#1f2937" }}>{selectedDM.name}</h3>
-                <p style={{ margin: "4px 0 0 0", color: "#9ca3af", fontSize: 13 }}>
-                  {selectedDM.email}
-                </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button
+                  onClick={() => setSelectedDM(null)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#667eea",
+                    cursor: "pointer",
+                    fontSize: 24,
+                    padding: 0,
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = "translateX(-4px)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = "translateX(0)";
+                  }}
+                >
+                  ←
+                </button>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: "600", color: "#1f2937" }}>{selectedDM.name}</h3>
+                  <p style={{ margin: "4px 0 0 0", color: "#9ca3af", fontSize: 13 }}>
+                    {selectedDM.email}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Call Buttons */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  onClick={() => startCall("audio")}
+                  style={{
+                    padding: "8px 12px",
+                    background: "#667eea",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    transition: "all 0.2s ease",
+                    whiteSpace: "nowrap",
+                  }}
+                  title="Voice Call"
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = "#5568d3";
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = "#667eea";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  🎙️
+                </button>
+                <button
+                  onClick={() => startCall("video")}
+                  style={{
+                    padding: "8px 12px",
+                    background: "#764ba2",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    transition: "all 0.2s ease",
+                    whiteSpace: "nowrap",
+                  }}
+                  title="Video Call"
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = "#6a3d8f";
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = "#764ba2";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  📹
+                </button>
               </div>
             </div>
             <ChatBox 
               roomId={[localStorage.getItem("userId"), selectedDM.id].sort().join("|")} 
               isDirect={true} 
             />
+            {(activeCall || incomingCall) && (
+              <CallModal
+                selectedDM={selectedDM}
+                activeCall={activeCall}
+                incomingCall={incomingCall}
+                setActiveCall={setActiveCall}
+                setIncomingCall={setIncomingCall}
+              />
+            )}
           </div>
         ) : (
           <div

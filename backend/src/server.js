@@ -14,7 +14,15 @@ const usersRoutes = require("./routes/users.routes");
 const chat = require("./sockets/chat");
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173", 
+    "http://192.168.101.18:5173", 
+    "http://192.168.101.18:3000",
+    "https://neville-intropunitive-paternally.ngrok-free.dev"
+  ],
+  credentials: true,
+}));
 app.use(express.json());
 
 // ================= ROUTES =================
@@ -47,7 +55,12 @@ const server = http.createServer(app);
 // ================= SOCKET.IO =================
 const io = new Server(server, {
   cors: { 
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173", 
+      "http://192.168.101.18:5173", 
+      "http://192.168.101.18:3000",
+      "https://neville-intropunitive-paternally.ngrok-free.dev"
+    ],
     credentials: true,
   },
 });
